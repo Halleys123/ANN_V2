@@ -1,0 +1,7 @@
+#pragma once
+
+enum ACTIVATION_FUNCTIONS
+{
+    UNIPOLAR_SIGMOID,
+    BIPOLAR_SIGMOID,
+};
