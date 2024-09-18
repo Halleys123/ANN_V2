@@ -31,6 +31,9 @@ public:
     {
         this->weights = weights;
     }
+    void update_weight(int prev_neuron, double weight) {
+        this->weights[prev_neuron] = weight;
+    }
     void set_bias(double bias) {
         this->bias = bias;
     }

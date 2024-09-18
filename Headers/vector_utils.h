@@ -14,6 +14,7 @@ std::ostream& operator<<(std::ostream& os, const vector<vector<vector<double>>>&
 vector<double> operator+(const vector<double>& v1, const vector<double>& v2);
 vector<double> operator-(const vector<double>& v1, const vector<double>& v2);
 vector<double> operator*(const vector<double>& v1, double scaler); // scaler * vector
+vector<double> operator*(const vector<double>& v1, const vector<double>& v2); // vector * vector
 
 // sum of all elements of a vector
 double vector_sum(const vector<double>& input);

@@ -1,2 +1,12 @@
-﻿  ANN.cpp
+﻿  MLP.cpp
+  Layer.cpp
+  ActivationFunctions.cpp
+  ACT_FUNC_ENUM.cpp
+  ANN.cpp
+D:\Projects\C++\Complete Projects\ANN\ANN.cpp(22,41): warning C4267: 'argument': conversion from 'size_t' to 'int', possible loss of data
+  Neuron.cpp
+  vector_utils.cpp
+D:\Projects\C++\Complete Projects\ANN\Utils\vector_utils.cpp(72,22): warning C4244: 'argument': conversion from 'double' to 'const unsigned __int64', possible loss of data
+  random_num_generator.cpp
+  Generating Code...
   ANN.vcxproj -> D:\Projects\C++\Complete Projects\ANN\x64\Debug\ANN.exe

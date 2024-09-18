@@ -53,8 +53,20 @@ public:
 		}
 		return output_vector;
 	}
-	vector<double> backward_propogation(bool is_output = false) {
-
+	void set_bias(int neuron, double update) {
+		neurons[neuron].set_bias(update);
+	}
+	void update_weights(int neuron, vector<double> weights) {
+		neurons[neuron].set_weights(weights);
+	}
+	void update_weight(int neuron, int prev_neuron, double update) {
+		neurons[neuron].update_weight(prev_neuron, update);
+	}
+	double get_bias(int neuron) {
+		return neurons[neuron].get_bias();
+	}
+	vector<double> get_weights(int neuron) {
+		return neurons[neuron].get_weights();
 	}
 	void print_layer_info()
 	{

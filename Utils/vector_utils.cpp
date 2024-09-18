@@ -83,3 +83,16 @@ vector<double> operator*(const vector<double> &v1, double scaler)
     }
     return result;
 }
+// vector * vector
+vector<double> operator*(const vector<double>& v1, const vector<double>& v2)
+{
+    if (v1.size() != v2.size())
+        throw invalid_argument("Vectors must be of same size");
+    vector<double> result(v1.size());
+    for (int i = 0; i < v1.size(); i++)
+    {
+        result[i] = v1[i] * v2[i];
+    }
+    return result;
+
+}
