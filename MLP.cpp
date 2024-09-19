@@ -1,6 +1,7 @@
 #include "Layer.cpp"
 #include "vector_utils.h"
 #include <string>
+#include <conio.h>
 #include <vector>
 
 struct TrainingParameters {
@@ -30,7 +31,7 @@ private:
 	vector<Layer> layers;
 
 public:
-	MLP(int total_layers, vector<int> neuron_in_each_layer, vector<vector<vector<double>>> weights = {}, vector<vector<double>> biases = {}) : neuron_in_each_layer(neuron_in_each_layer), total_layers(total_layers)
+	MLP(int total_layers, vector<int>& neuron_in_each_layer, vector<vector<vector<double>>> weights = {}, vector<vector<double>> biases = {}) : neuron_in_each_layer(neuron_in_each_layer), total_layers(total_layers)
 	{
 		if (neuron_in_each_layer.size() < 3)
 			throw invalid_argument("The number of layers must be greater than 2");
@@ -89,7 +90,7 @@ public:
 		for (int i = 0; i < total_layers; i++)
 			layers.push_back(Layer(neuron_in_each_layer[i], biases[i], weights[i], i == 0));
 	}
-	vector<double> forward_propogation(vector<double> input)
+	vector<double> forward_propogation(vector<double>& input)
 	{
 		vector<vector<double>> outputs(total_layers);
 		if (input.size() != neuron_in_each_layer[0])
@@ -143,7 +144,19 @@ public:
 	void toggle_show_error(bool val) {
 		this->show_error = val;
 	}
-	void train(const TrainingParameters& params, vector<vector<double>> presentations, vector<vector<double>> desired_outputs)
+	void get_current_weight_and_bias(vector<vector<vector<double>>>& weights, vector<vector<double>>& bias) {
+		for(int i = 0;i < total_layers;i++) {
+			vector<vector<double>> cur_layer_weights;
+			vector<double> cur_layer_bias;
+			for (int j = 0; j < neuron_in_each_layer[i]; j++) {
+				cur_layer_weights.push_back(layers[i].get_weights(j));
+				cur_layer_bias.push_back(layers[i].get_bias(j));
+			}
+			weights.push_back(cur_layer_weights);
+			bias.push_back(cur_layer_bias);
+		}
+	}
+	void train(const TrainingParameters& params, vector<vector<double>>& presentations, vector<vector<double>>& desired_outputs)
 	{
 		this->learning_rate = params.initial_learning_rate;
 		this->permissible_error = params.target_error;
@@ -151,11 +164,24 @@ public:
 
 		double this_epoch_error = INT_MAX;
 		double previous_epoch_error = INT_MAX;
+		double minimum_error = INT_MAX;
+		vector<vector<vector<double>>> best_weights;  // Store the best weights
+		vector<vector<double>> best_bias;  // Store the best weights
+	
 		int stable_error_count = 0;
 		int early_stopping_counter = 0;
 
+		get_current_weight_and_bias(best_weights, best_bias);
+		
 		while (this_epoch_error > params.target_error && early_stopping_counter < params.early_stop_threshold)
 		{
+			if (_kbhit()) {  // If a key is pressed
+				char ch = _getch();  // Get the pressed key
+				if (ch == 's' || ch == 'S') {
+					cout << "Training stopped by user input." << endl;
+					break;  // Exit the loop and stop training
+				}
+			}
 			this_epoch_error = 0;
 
 			for (int num = 0; num < params.num_epochs; num++)
@@ -173,6 +199,12 @@ public:
 			this_epoch_error /= params.num_epochs;
 			if (params.show_error)
 				cout << "Error: " << this_epoch_error << endl;
+			
+			if (this_epoch_error < minimum_error) {
+				minimum_error = this_epoch_error;
+				get_current_weight_and_bias(best_weights, best_bias);  // Save weights when error is minimized
+				cout << "New minimum error: " << minimum_error << ", saving current weights." << endl;
+			}
 
 			if (fabs(previous_epoch_error - this_epoch_error) < params.min_error_improvement) {
 				early_stopping_counter++;
@@ -198,6 +230,15 @@ public:
 
 		if (early_stopping_counter >= params.early_stop_threshold) {
 			cout << "Early stopping triggered after " << early_stopping_counter << " epochs of no significant improvement." << endl;
+		}
+		if (this_epoch_error > minimum_error) {
+			cout << "Reverting to the best weights with minimum error: " << minimum_error << endl;
+			/*for (int layer_no = 0; layer_no < total_layers; layer_no++) {
+				for (int neuron_no = 0; neuron_no < neuron_in_each_layer[layer_no]; neuron_no++) {
+					layers[layer_no].set_bias(neuron_no, best_bias[layer_no][neuron_no]);
+					layers[layer_no].update_weights(neuron_no, best_weights[layer_no][neuron_no]);
+				}
+			}*/
 		}
 	}
 	vector<double> compute(vector<double> input)
