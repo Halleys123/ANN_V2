@@ -3,6 +3,19 @@
 #include <string>
 #include <vector>
 
+struct TrainingParameters {
+	int num_epochs = 1000;                          // Number of training epochs (reasonable default: 1000)
+	double initial_learning_rate = 0.01;            // Learning rate starts low (0.001 to 0.01 for most cases)
+	double target_error = 0.001;                    // Desired error before stopping (0.001 to 0.01 for good convergence)
+	double early_stop_threshold = 100;              // Max epochs without improvement before stopping (50-100 epochs)
+	double min_error_improvement = 1e-6;            // Minimum change in error to reset early stopping (very small, 1e-6)
+	double min_learning_rate = 1e-6;                // Smallest allowable learning rate (1e-6 to prevent collapse)
+	double stable_error_threshold = 1e-4;           // Error difference considered stable (1e-4 for small changes)
+	int patience_limit = 50;                        // Number of epochs to wait before reducing learning rate (30-50 epochs)
+	double dynamic_lr_reduction_factor = 0.1;       // Factor to reduce learning rate (reduce by 10% each time)
+	bool show_error = true;                         // Flag to display error during training (usually true for tracking)
+};
+
 class MLP
 {
 private:
@@ -10,7 +23,7 @@ private:
 	double learning_rate = 0.5;
 	double permissible_error = 0.01;
 
-	bool show_error = false;
+	bool show_error = true;
 
 	vector<vector<double>> output_from_each_layer;
 	vector<int> neuron_in_each_layer;
@@ -130,28 +143,22 @@ public:
 	void toggle_show_error(bool val) {
 		this->show_error = val;
 	}
-	void train(int size_of_eepoch, vector<vector<double>> presentations, vector<vector<double>> desired_outputs,
-		double training_rate = 0.5, double permissible_error = 0.01,
-		double early_stopping_threshold = 500, double min_error_delta = 1e-5,
-		double min_learning_rate = 1e-5, double tolerance_threshold = 1e-3,
-		int tolerance_count = 100, double dynamic_reduction_factor = 0.05)
+	void train(const TrainingParameters& params, vector<vector<double>> presentations, vector<vector<double>> desired_outputs)
 	{
-		this->learning_rate = training_rate;
-		this->permissible_error = permissible_error;
+		this->learning_rate = params.initial_learning_rate;
+		this->permissible_error = params.target_error;
+		this->show_error = params.show_error;
 
-		double this_eepoch_error = INT_MAX;
-		double previous_eepoch_error = INT_MAX;
-		// Times ANN got similar error value
+		double this_epoch_error = INT_MAX;
+		double previous_epoch_error = INT_MAX;
 		int stable_error_count = 0;
-		// Counts how many times did ANN get similar value in order to stop learning based on early_stopping_threshold
 		int early_stopping_counter = 0;
-		double initial_learning_rate = training_rate;
 
-		while (this_eepoch_error > permissible_error && early_stopping_counter < early_stopping_threshold)
+		while (this_epoch_error > params.target_error && early_stopping_counter < params.early_stop_threshold)
 		{
-			this_eepoch_error = 0;
+			this_epoch_error = 0;
 
-			for (int num = 0; num < size_of_eepoch; num++)
+			for (int num = 0; num < params.num_epochs; num++)
 			{
 				vector<double> output = forward_propogation(presentations[num]);
 				double sample_error = 0.0;
@@ -159,28 +166,25 @@ public:
 					sample_error += (desired_outputs[num][i] - output[i]) * (desired_outputs[num][i] - output[i]);
 				}
 
-				this_eepoch_error += sample_error;
+				this_epoch_error += sample_error;
 				backward_propagation(desired_outputs[num]);
 			}
-			this_eepoch_error /= size_of_eepoch;
-			if(show_error)
-				cout << "Error: " << this_eepoch_error << endl;
 
-			// min error delta means how much the error should at least fall so that early stopping counter don't increase.
-			if (fabs(previous_eepoch_error - this_eepoch_error) < min_error_delta) {
+			this_epoch_error /= params.num_epochs;
+			if (params.show_error)
+				cout << "Error: " << this_epoch_error << endl;
+
+			if (fabs(previous_epoch_error - this_epoch_error) < params.min_error_improvement) {
 				early_stopping_counter++;
 			}
 			else {
-				early_stopping_counter = 0; 
+				early_stopping_counter = 0;
 			}
 
-			// tolerance threshold means how much should be the error difference in order for stable error count to increase
-			// which in turn will decrease the learning rate;
-			if (fabs(previous_eepoch_error - this_eepoch_error) < tolerance_threshold) {
+			if (fabs(previous_epoch_error - this_epoch_error) < params.stable_error_threshold) {
 				stable_error_count++;
-				if (stable_error_count >= tolerance_count) {
-					double reduction = 1.0 - (dynamic_reduction_factor * stable_error_count);
-					this->learning_rate = max(this->learning_rate * reduction, min_learning_rate);
+				if (stable_error_count >= params.patience_limit) {
+					this->learning_rate = max(this->learning_rate * 0.1, params.min_learning_rate);
 					cout << "Learning rate reduced to: " << this->learning_rate << endl;
 					stable_error_count = 0;
 				}
@@ -188,10 +192,11 @@ public:
 			else {
 				stable_error_count = 0;
 			}
-			previous_eepoch_error = this_eepoch_error;
+
+			previous_epoch_error = this_epoch_error;
 		}
 
-		if (early_stopping_counter >= early_stopping_threshold) {
+		if (early_stopping_counter >= params.early_stop_threshold) {
 			cout << "Early stopping triggered after " << early_stopping_counter << " epochs of no significant improvement." << endl;
 		}
 	}
