@@ -1,5 +1,5 @@
 ﻿  ANN.cpp
-D:\Projects\C++\Complete Projects\ANN\ANN.cpp(32,41): warning C4267: 'argument': conversion from 'size_t' to 'int', possible loss of data
-  MLP.cpp
+D:\Projects\C++\Complete Projects\ANN\ANN.cpp(36,41): warning C4267: 'argument': conversion from 'size_t' to 'int', possible loss of data
+  random_num_generator.cpp
   Generating Code...
   ANN.vcxproj -> D:\Projects\C++\Complete Projects\ANN\x64\Debug\ANN.exe

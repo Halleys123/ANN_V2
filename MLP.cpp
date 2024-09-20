@@ -1,11 +1,12 @@
 #include "Layer.cpp"
 #include "vector_utils.h"
+#include "random_num_generator.h"
 #include <string>
 #include <conio.h>
 #include <vector>
 
 struct TrainingParameters {
-	int num_epochs = 1000;                          // Number of training epochs (reasonable default: 1000)
+	int presentations_per_eepoch = 1000;                          // Number of training epochs (reasonable default: 1000)
 	double initial_learning_rate = 0.01;            // Learning rate starts low (0.001 to 0.01 for most cases)
 	double target_error = 0.001;                    // Desired error before stopping (0.001 to 0.01 for good convergence)
 	double early_stop_threshold = 100;              // Max epochs without improvement before stopping (50-100 epochs)
@@ -17,6 +18,11 @@ struct TrainingParameters {
 	bool show_error = true;                         // Flag to display error during training (usually true for tracking)
 };
 
+enum NORMALIZE_TYPE {
+	NORMALIZE,
+	DENORMALIZE
+};
+
 class MLP
 {
 private:
@@ -25,6 +31,11 @@ private:
 	double permissible_error = 0.01;
 
 	bool show_error = true;
+
+	vector<double> input_min;							// For normalization
+	vector<double> input_max;
+	vector<double> output_max;
+	vector<double> output_min;
 
 	vector<vector<double>> output_from_each_layer;
 	vector<int> neuron_in_each_layer;
@@ -51,12 +62,14 @@ public:
 				}
 				else {
 					for (int j = 0; j < neuron_in_each_layer[i]; j++) {
+						//b_l.push_back(generateRandomNumber(0, 1));
 						b_l.push_back(0);
 					}
 					for (int j = 0; j < neuron_in_each_layer[i]; j++) {
 						vector<double> w(neuron_in_each_layer[i - 1]);
 						for (int k = 0; k < neuron_in_each_layer[i - 1]; k++) {
 							w[k] = 0.2;
+							//w[k] = generateRandomNumber(-1, 1);
 						}
 						w_l.push_back(w);
 					}
@@ -136,6 +149,7 @@ public:
 					//printf("Layers: %d\nNeuron %d from last layer and %d from current\nUpdate: %f\nOutput from neuron %d = %f\nDelta %d %d: %f\n----------------\n", l, j, i, delta_weight, j, output_from_each_layer[l - 1][j], l, i, deltas[l][i]);
 					layers[l].update_weight(i, j, layers[l].get_weights(i)[j] + delta_weight);
 				}
+				//cout << layers[l].get_weights(i) << endl;
 				double delta_bias = learning_rate * deltas[l][i];
 				layers[l].set_bias(i, layers[l].get_bias(i) + delta_bias);
 			}
@@ -145,6 +159,8 @@ public:
 		this->show_error = val;
 	}
 	void get_current_weight_and_bias(vector<vector<vector<double>>>& weights, vector<vector<double>>& bias) {
+		weights.clear();
+		bias.clear();
 		for(int i = 0;i < total_layers;i++) {
 			vector<vector<double>> cur_layer_weights;
 			vector<double> cur_layer_bias;
@@ -158,6 +174,11 @@ public:
 	}
 	void train(const TrainingParameters& params, vector<vector<double>>& presentations, vector<vector<double>>& desired_outputs)
 	{
+		//normalize_training_data(presentations, this->input_min, this->input_max);
+		//normalize_training_data(desired_outputs, this->output_min, this->output_max);
+
+		cout << presentations << endl << desired_outputs << endl;
+
 		this->learning_rate = params.initial_learning_rate;
 		this->permissible_error = params.target_error;
 		this->show_error = params.show_error;
@@ -165,15 +186,18 @@ public:
 		double this_epoch_error = INT_MAX;
 		double previous_epoch_error = INT_MAX;
 		double minimum_error = INT_MAX;
+
 		vector<vector<vector<double>>> best_weights;  // Store the best weights
 		vector<vector<double>> best_bias;  // Store the best weights
 	
 		int stable_error_count = 0;
 		int early_stopping_counter = 0;
 
+		//double x = 0;
+
 		get_current_weight_and_bias(best_weights, best_bias);
 		
-		while (this_epoch_error > params.target_error && early_stopping_counter < params.early_stop_threshold)
+		while (this_epoch_error > params.target_error)
 		{
 			if (_kbhit()) {  // If a key is pressed
 				char ch = _getch();  // Get the pressed key
@@ -184,27 +208,33 @@ public:
 			}
 			this_epoch_error = 0;
 
-			for (int num = 0; num < params.num_epochs; num++)
+			for (int num = 0; num < params.presentations_per_eepoch; num++)
 			{
 				vector<double> output = forward_propogation(presentations[num]);
+				//cout << output << " ";
 				double sample_error = 0.0;
 				for (int i = 0; i < output.size(); i++) {
-					sample_error += (desired_outputs[num][i] - output[i]) * (desired_outputs[num][i] - output[i]);
+					sample_error += abs(desired_outputs[num][i] - output[i]);
 				}
 
 				this_epoch_error += sample_error;
 				backward_propagation(desired_outputs[num]);
 			}
 
-			this_epoch_error /= params.num_epochs;
-			if (params.show_error)
-				cout << "Error: " << this_epoch_error << endl;
+			this_epoch_error /= params.presentations_per_eepoch;
+
+			if (params.show_error) {
+				//printf(",(%f, %f)", x, this_epoch_error);
+				//x += 0.01;
+				cout <<  this_epoch_error << endl;
+			}
 			
 			if (this_epoch_error < minimum_error) {
 				minimum_error = this_epoch_error;
 				get_current_weight_and_bias(best_weights, best_bias);  // Save weights when error is minimized
-				cout << "New minimum error: " << minimum_error << ", saving current weights." << endl;
+				//cout << "New minimum error: " << minimum_error << ", saving current weights." << endl;
 			}
+
 
 			if (fabs(previous_epoch_error - this_epoch_error) < params.min_error_improvement) {
 				early_stopping_counter++;
@@ -217,7 +247,7 @@ public:
 				stable_error_count++;
 				if (stable_error_count >= params.patience_limit) {
 					this->learning_rate = max(this->learning_rate * 0.1, params.min_learning_rate);
-					cout << "Learning rate reduced to: " << this->learning_rate << endl;
+					//cout << "Learning rate reduced to: " << this->learning_rate << endl;
 					stable_error_count = 0;
 				}
 			}
@@ -231,19 +261,61 @@ public:
 		if (early_stopping_counter >= params.early_stop_threshold) {
 			cout << "Early stopping triggered after " << early_stopping_counter << " epochs of no significant improvement." << endl;
 		}
-		if (this_epoch_error > minimum_error) {
+		/*if (this_epoch_error > minimum_error) {
 			cout << "Reverting to the best weights with minimum error: " << minimum_error << endl;
-			/*for (int layer_no = 0; layer_no < total_layers; layer_no++) {
+			for (int layer_no = 0; layer_no < total_layers; layer_no++) {
 				for (int neuron_no = 0; neuron_no < neuron_in_each_layer[layer_no]; neuron_no++) {
 					layers[layer_no].set_bias(neuron_no, best_bias[layer_no][neuron_no]);
 					layers[layer_no].update_weights(neuron_no, best_weights[layer_no][neuron_no]);
 				}
-			}*/
-		}
+			}
+		}*/
 	}
 	vector<double> compute(vector<double> input)
 	{
-		return forward_propogation(input);
+		//normalize_prediction_data(input, NORMALIZE);
+		//cout << input << endl;
+		auto result = forward_propogation(input);
+		//cout << result << endl;
+		//normalize_prediction_data(result, DENORMALIZE);
+		return result;
+	}
+	void normalize_prediction_data(vector<double>& data, NORMALIZE_TYPE type) {
+		switch (type)
+		{
+		case NORMALIZE:
+			for (int i = 0; i < data.size(); i++) {
+				data[i] = (data[i] - input_min[i]) / (input_max[i] - input_min[i]);
+			}
+			break;
+		case DENORMALIZE:
+			for (int i = 0; i < data.size(); i++) {
+				data[i] = (data[i] * (output_max[i] - output_min[i])) + output_min[i];
+			}
+			break;
+		default:
+			break;
+		}
+	}
+	void normalize_training_data(vector<vector<double>>& data, vector<double>& min_val, vector<double>& max_val) {
+		vector<double> min(data[0].size(), INT_MAX);
+		vector<double> max(data[0].size(), INT_MIN);
+
+		for (auto v : data) {
+			for (int i = 0; i < v.size(); i++) {
+				if (min[i] > v[i]) min[i] = v[i];
+				if (max[i] < v[i]) max[i] = v[i];
+			}
+		}
+
+		min_val = min;
+		max_val = max;
+
+		for (int j = 0; j < data.size(); j++) {
+			for (int i = 0; i < data[j].size(); i++) {
+				data[j][i] = ((data[j][i] - min[i]) / (max[i] - min[i]));
+			}
+		}
 	}
 	void print_mlp() {
 		for (int i = 0; i < total_layers; i++) {

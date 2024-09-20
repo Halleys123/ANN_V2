@@ -25,20 +25,20 @@ std::ostream &operator<<(std::ostream &os, const vector<vector<double>> &v)
         if (i != v.size() - 1)
             os << ", ";
     }
-    os << "]";
+    os << "]" << std::endl;
     return os;
 }
 
 std::ostream &operator<<(std::ostream &os, const vector<vector<vector<double>>> &v)
 {
-    os << "[";
+    os << "[" << std::endl;
     for (int i = 0; i < v.size(); i++)
     {
         os << v[i];
         if (i != v.size() - 1)
             os << ", ";
     }
-    os << "]";
+    os << "]" << std::endl;
     return os;
 }
 vector<double> operator+(const vector<double> &v1, const vector<double> &v2)
